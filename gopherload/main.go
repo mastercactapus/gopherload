@@ -16,7 +16,29 @@ var (
 		Short: "Print metrics on GET requests",
 		Run:   run,
 	}
+	loadCmd = &cobra.Command{
+		Use:   "load <url>",
+		Short: "Perform a load test against url",
+		Run:   runLoad,
+	}
 )
+
+func runLoad(cmd *cobra.Command, args []string) {
+	t := &gopherload.SimpleTemplate{
+		URL: "http://localhost:8000/",
+	}
+	target := gopherload.Target("localhost:8000")
+
+	load := &gopherload.LoadGenerator{CLimit: 100, Source: t, Profiler: target}
+	resCh := load.Start(5)
+	for res := range resCh {
+		if res.Err != nil {
+			fmt.Println("Error:", res.Err.Error())
+		} else {
+			fmt.Printf("ResponseTime: %s\n", res.Profile.TotalElapsed.String())
+		}
+	}
+}
 
 func run(cmd *cobra.Command, args []string) {
 	for _, urlStr := range args {
@@ -68,5 +90,6 @@ Status: %d
 }
 
 func main() {
+	mainCmd.AddCommand(loadCmd)
 	mainCmd.Execute()
 }

@@ -83,8 +83,8 @@ func (r *readCounter) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Profile will perform an HTTP request against Target, tracking metrics to a RequestProfile struct
-// if tlsConfig is not nil, HTTPS will be used instead
+// Profile will perform an HTTP request against Target, tracking metrics to a RequestProfile struct.
+// If tlsConfig is not nil, HTTPS will be used instead.
 func (t Target) Profile(req *http.Request, tlsConfig *tls.Config) (*RequestProfile, error) {
 	var stats RequestProfile
 	host := string(t)
