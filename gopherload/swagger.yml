@@ -1,0 +1,101 @@
+swagger: '2.0'
+info:
+  title: gopherload API
+  description: Control and configure running load tests on a gopherload server.
+  version: "0.0.1"
+schemes:
+  - http
+basePath: /v0
+produces:
+  - application/json
+consumes:
+  - application/json
+paths:
+  /load-tests:
+    get:
+      summary: Active load-tests
+      description: |
+        The load-tests endpoint lists running tests along with their configuration
+      tags:
+        - LoadTests
+      responses:
+        200:
+          description: An array of load tests
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/LoadTest'
+    post:
+      summary: Create load-test
+      description: |
+        The create load-test endpoint will create and start a new load test
+      tags:
+        - LoadTests
+      parameters:
+      - name: body
+        description: The configuration for the new load test
+        in: body
+        schema:
+          $ref: "#/definitions/LoadTest"
+      responses:
+        200:
+          description: The new load test
+          schema:
+            $ref: '#/definitions/LoadTest'
+  /load-tests/{id}/results:
+    get:
+      summary: Read load test results
+      description: |
+        The results endpoint serializes the load test results
+      parameters:
+      - name: id
+        description: The load test ID to get results for
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: An array of test results
+definitions:
+  LoadTest:
+    type: object
+    properties:
+      ID:
+        type: string
+        readOnly: true
+        description: Identifier for this load test
+      URL:
+        type: string
+        description: URL is the fully-qualified URL to hit
+      Method:
+        type: string
+        description: HTTP method to use (e.g. GET, PUT, POST)
+      Headers:
+        type: object
+        description: HTTP headers to send
+        additionalProperties:
+          type: array
+          items:
+            type: string
+      Body:
+        type: string
+        format: byte
+        description: request body to send
+      RPS:
+        type: number
+        format: double
+        description: "Requests to send per second. If 0 there is no limit. Note: RPS, Limit or Concurrency must be non-zero."
+      RampUp:
+        type: number
+        format: double
+        description: RPS per second. Rate is adjusted once per second. If 0 there is no ramp-up.
+      Concurrency:
+        type: integer
+        description: "Max concurrency. Limit the number of in-flight requests. If 0 there is no limit. Note: RPS, Limit or Concurrency must be non-zero."
+      Limit:
+        type: integer
+        description: "Number of requests to perform. If 0 there is no limit. Note: RPS, Limit or Concurrency must be non-zero."
+      CurrentRPS:
+        type: number
+        format: double
+        description: Current RPS value. Useful for monitoring ramp-up or setting an initial value.
