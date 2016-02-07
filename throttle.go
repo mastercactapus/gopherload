@@ -25,6 +25,7 @@ func (t *Throttle) loop(src chan *http.Request, rps float64) {
 	delay := time.Duration(float64(time.Second) / rps)
 	tc := time.NewTicker(delay / 2)
 	last := time.Now()
+	bucket := time.Duration(0)
 	for {
 		select {
 		case <-tc.C:
@@ -34,17 +35,23 @@ func (t *Throttle) loop(src chan *http.Request, rps float64) {
 			close(t.reqCh)
 			return
 		case rate := <-t.rateCh:
-			delay = time.Duration(float64(time.second) / rate)
+			delay = time.Duration(float64(time.Second) / rate)
 			tc.Stop()
 			tc = time.NewTicker(delay / 2)
+			if bucket > delay {
+				bucket = delay
+			}
 			goto send
 		}
 		continue
 	send:
-		if time.Since(last) > delay {
+		tm := time.Now()
+		bucket += tm.Sub(last)
+		last = tm
+		if bucket >= delay {
 			select {
-			case t.reqCh <- src:
-				last = time.Now()
+			case t.reqCh <- <-src:
+				bucket -= delay
 			default:
 			}
 		}

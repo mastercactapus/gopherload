@@ -1,95 +1,29 @@
 package main
 
-import (
-	"crypto/tls"
-	"fmt"
-	"net/url"
-	"time"
+import log "github.com/sirupsen/logrus"
 
-	"github.com/mastercactapus/gopherload"
-)
 import "github.com/spf13/cobra"
 
+var bindAddr string
+
 var (
-	mainCmd = &cobra.Command{
-		Use:   "gopherload <url...>",
-		Short: "Print metrics on GET requests",
-		Run:   run,
-	}
-	loadCmd = &cobra.Command{
-		Use:   "load <url>",
-		Short: "Perform a load test against url",
-		Run:   runLoad,
+	mainCmd  = &cobra.Command{}
+	serveCmd = &cobra.Command{
+		Use:   "serve",
+		Short: "Run an HTTP-controlled load test server.",
+		Run:   runServe,
 	}
 )
 
-func runLoad(cmd *cobra.Command, args []string) {
-	t := &gopherload.SimpleTemplate{
-		URL: "http://localhost:8000/",
+func runServe(cmd *cobra.Command, args []string) {
+	addr, err := cmd.Flags().GetString("bind")
+	if err != nil {
+		log.Fatalln(err)
 	}
-	target := gopherload.Target("localhost:8000")
-
-	load := &gopherload.LoadGenerator{CLimit: 100, Source: t, Profiler: target}
-	resCh := load.Start(5)
-	for res := range resCh {
-		if res.Err != nil {
-			fmt.Println("Error:", res.Err.Error())
-		} else {
-			fmt.Printf("ResponseTime: %s\n", res.Profile.TotalElapsed.String())
-		}
-	}
+	Serve(addr)
 }
-
-func run(cmd *cobra.Command, args []string) {
-	for _, urlStr := range args {
-		u, err := url.Parse(urlStr)
-		if err != nil {
-			panic(err)
-		}
-		t := &gopherload.SimpleTemplate{
-			URL: urlStr,
-		}
-		req, err := t.NewRequest()
-		if err != nil {
-			panic(err)
-		}
-
-		var tlsConfig *tls.Config
-		if u.Scheme == "https" {
-			tlsConfig = new(tls.Config)
-			tlsConfig.ServerName = u.Host
-		}
-		p, err := gopherload.Target(u.Host).Profile(req, tlsConfig)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf(`
-Start: %s
-Dial:  %s
-TLS:   %s
-Send:  %s
-Recv:  %s
-
-TTFB:  %s
-TTH:   %s
-Total: %s
-
-Sent:     %d
-Recv:     %d
-RecvBody: %d
-
-Status: %d
-`, p.Start.Format(time.RubyDate), p.DialElapsed.String(),
-			(p.TLSElapsed - p.DialElapsed).String(), (p.SendElapsed - p.TLSElapsed).String(),
-			(p.TotalElapsed - p.SendElapsed).String(), p.TTFBElapsed.String(),
-			p.HeadersElapsed.String(), p.TotalElapsed.String(), p.SentBytes, p.RecvBytes,
-			p.RecvBodyBytes, p.StatusCode)
-	}
-
-}
-
 func main() {
-	mainCmd.AddCommand(loadCmd)
+	serveCmd.Flags().StringP("bind", "b", ":8000", "Bind address. The address:port to bind the HTTP server to.")
+	mainCmd.AddCommand(serveCmd)
 	mainCmd.Execute()
 }

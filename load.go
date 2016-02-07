@@ -13,7 +13,7 @@ type Result struct {
 }
 
 type LoadGenerator struct {
-	Source    RequestSource
+	Source    chan *http.Request
 	Profiler  RequestProfiler
 	CLimit    int
 	TLSConfig *tls.Config
@@ -29,10 +29,7 @@ func (g *LoadGenerator) loop() {
 			return
 		default:
 		}
-		req, err := g.Source.NewRequest()
-		if err != nil {
-			panic(err)
-		}
+		req := <-g.Source
 		g.limitCh <- struct{}{}
 		go g.profile(req)
 	}
@@ -45,14 +42,13 @@ func (g *LoadGenerator) profile(req *http.Request) {
 	g.resultsCh <- res
 }
 
-func (g *LoadGenerator) Start(buffer int) chan *Result {
-	g.resultsCh = make(chan *Result, buffer)
+func (g *LoadGenerator) Start(resCh chan *Result) {
+	g.resultsCh = resCh
 	g.closeCh = make(chan struct{})
 	g.limitCh = make(chan struct{}, g.CLimit)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go g.loop()
 	}
-	return g.resultsCh
 }
 func (g *LoadGenerator) Stop() {
 	close(g.closeCh)
